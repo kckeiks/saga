@@ -22,10 +22,10 @@ impl Client {
         })
     }
 
-    pub async fn get(&self, cid: String) -> Result<()> {
+    pub async fn get(&self, id: String) -> Result<Vec<u8>> {
         let client = self.clone();
         let connections = client.pool.0.read().await;
-        let connection = match connections.get(&cid) {
+        let connection = match connections.get(&id) {
             Some(connection) => connection.clone(),
             None => {
                 drop(connections);
@@ -37,18 +37,18 @@ impl Client {
                     )?
                     .await?;
                 let mut connections = client.pool.0.write().await;
-                connections.insert(cid.clone(), connection.clone());
+                connections.insert(id.clone(), connection.clone());
                 connection
             }
         };
         let (mut tx_stream, mut rx_stream) = connection.open_bi().await.unwrap();
-        protocol::write(&mut tx_stream, b"hello").await?;
+        protocol::write(&mut tx_stream, id.as_bytes()).await?;
 
         let mut buf = Vec::new();
         protocol::read(&mut rx_stream, &mut buf).await?;
 
-        debug!("{}", String::from_utf8_lossy(buf.as_ref()));
-        Ok(())
+        debug!("File received with size {}", buf.len());
+        Ok(buf)
     }
 }
 
