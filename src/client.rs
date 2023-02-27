@@ -25,6 +25,7 @@ impl Client {
     pub async fn get(&self, id: String) -> Result<Vec<u8>> {
         let client = self.clone();
         let connections = client.pool.0.read().await;
+        // TODO: Check if the connection is still valid.
         let connection = match connections.get(&id) {
             Some(connection) => connection.clone(),
             None => {
