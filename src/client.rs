@@ -3,7 +3,7 @@ use abao::decode::AsyncSliceDecoder;
 use anyhow::Result;
 use blake3::Hash;
 use quinn::{ClientConfig, Connection, Endpoint};
-use std::{collections::HashMap, net::SocketAddr, str::FromStr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::{io::AsyncReadExt, sync::RwLock};
 use tracing::debug;
 
@@ -24,7 +24,7 @@ impl Client {
         })
     }
 
-    pub async fn get(&self, id: String) -> Result<Vec<u8>> {
+    pub async fn get(&self, id: String, dst: SocketAddr) -> Result<Vec<u8>> {
         let client = self.clone();
         let connections = client.pool.0.read().await;
         // TODO: Check if the connection is still valid.
@@ -32,13 +32,7 @@ impl Client {
             Some(connection) => connection.clone(),
             None => {
                 drop(connections);
-                let connection = client
-                    .endpoint
-                    .connect(
-                        SocketAddr::from_str("127.0.0.1:4455").unwrap(),
-                        "servername",
-                    )?
-                    .await?;
+                let connection = client.endpoint.connect(dst, "servername")?.await?;
                 let mut connections = client.pool.0.write().await;
                 connections.insert(id.clone(), connection.clone());
                 connection
