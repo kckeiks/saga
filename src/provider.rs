@@ -16,13 +16,8 @@ impl FileProvider {
         let mut file = File::open(path)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
-        let data = buf.clone();
-        let (encoded, hash) = abao::encode::outboard(buf);
-        Ok(Self(Data {
-            hash,
-            outboard: encoded,
-            data,
-        }))
+        let (encoded, hash) = abao::encode::encode(buf);
+        Ok(Self(Data { hash, encoded }))
     }
 }
 
@@ -36,6 +31,5 @@ impl Provider for FileProvider {
 #[derive(Clone)]
 pub struct Data {
     pub hash: Hash,
-    pub outboard: Vec<u8>,
-    pub data: Vec<u8>,
+    pub encoded: Vec<u8>,
 }

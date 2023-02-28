@@ -1,8 +1,7 @@
 use crate::{protocol, provider::Provider, tls};
-use abao::encode::SliceExtractor;
 use anyhow::{anyhow, Result};
 use quinn::{Connecting, Endpoint, RecvStream, SendStream, ServerConfig};
-use std::{io::Read, net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::select;
 use tracing::debug;
 
@@ -49,15 +48,6 @@ async fn handle_stream<P: Provider>(
         .ok_or_else(|| anyhow!("Failed to get data"))?;
     protocol::write(&mut tx_stream, data.hash.as_bytes()).await?;
     // TODO: Define and set limits on data/requests that are exchanged.
-    let mut extractor = SliceExtractor::new_outboard(
-        std::io::Cursor::new(&data.data[..]),
-        std::io::Cursor::new(&data.outboard[..]),
-        0,
-        data.data.len() as u64,
-    );
-    let encoded_size: usize = abao::encode::encoded_size(data.data.len() as u64).try_into()?;
-    let mut encoded = Vec::with_capacity(encoded_size);
-    extractor.read_to_end(&mut encoded)?;
-    tx_stream.write_all(&mut encoded).await?;
+    tx_stream.write_all(data.encoded.as_ref()).await?;
     Ok(())
 }
