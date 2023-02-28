@@ -28,13 +28,13 @@ impl Client {
         let client = self.clone();
         let connections = client.pool.0.read().await;
         // TODO: Check if the connection is still valid.
-        let connection = match connections.get(&id) {
+        let connection = match connections.get(&dst) {
             Some(connection) => connection.clone(),
             None => {
                 drop(connections);
                 let connection = client.endpoint.connect(dst, "servername")?.await?;
                 let mut connections = client.pool.0.write().await;
-                connections.insert(id.clone(), connection.clone());
+                connections.insert(dst, connection.clone());
                 connection
             }
         };
@@ -57,4 +57,4 @@ impl Client {
 }
 
 #[derive(Clone, Default)]
-pub struct Pool(Arc<RwLock<HashMap<String, Connection>>>);
+pub struct Pool(Arc<RwLock<HashMap<SocketAddr, Connection>>>);
