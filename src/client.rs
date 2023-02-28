@@ -1,8 +1,10 @@
 use crate::{protocol, tls};
+use abao::decode::AsyncSliceDecoder;
 use anyhow::Result;
+use blake3::Hash;
 use quinn::{ClientConfig, Connection, Endpoint};
 use std::{collections::HashMap, net::SocketAddr, str::FromStr, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::{io::AsyncReadExt, sync::RwLock};
 use tracing::debug;
 
 #[derive(Clone)]
@@ -45,11 +47,18 @@ impl Client {
         let (mut tx_stream, mut rx_stream) = connection.open_bi().await.unwrap();
         protocol::write(&mut tx_stream, id.as_bytes()).await?;
 
-        let mut buf = Vec::new();
-        protocol::read(&mut rx_stream, &mut buf).await?;
+        let mut hash = Vec::new();
+        protocol::read(&mut rx_stream, &mut hash).await?;
 
-        debug!("File received with size {}", buf.len());
-        Ok(buf)
+        let hash: [u8; 32] = hash.as_slice().try_into()?;
+        let hash = Hash::from(hash);
+        debug!("Hash received {hash:?}");
+
+        let mut decoder = AsyncSliceDecoder::new(rx_stream, &hash, 0, u64::MAX);
+        let mut decoded = Vec::with_capacity(4096);
+        decoder.read_to_end(&mut decoded).await?;
+        debug!("File received with size {}", decoded.len());
+        Ok(decoded)
     }
 }
 
